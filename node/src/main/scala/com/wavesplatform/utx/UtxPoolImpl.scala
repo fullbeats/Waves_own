@@ -4,6 +4,22 @@ import java.time.Duration
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.ConcurrentHashMap
 
+// Pütti added these
+import com.wavesplatform.api.common.TransactionMeta
+import com.wavesplatform.api.common.{CommonAccountsApi, CommonAssetsApi, CommonTransactionsApi}
+import com.wavesplatform.api.http.TransactionsApiRoute.TransactionJsonSerializer
+import com.wavesplatform.api.http.TransactionsApiRoute
+import com.wavesplatform.common.state.ByteStr
+import com.wavesplatform.api.http.ApiError._
+import com.wavesplatform.api.http.ApiError
+import com.wavesplatform.api.{BlockMeta, common}
+import play.api.libs.json._
+import com.wavesplatform.database.{DBExt, Keys, openDB}
+import org.iq80.leveldb.DB
+import scala.util.{Try, Success, Failure}
+
+
+
 import com.wavesplatform.ResponsivenessLogs
 import com.wavesplatform.account.Address
 import com.wavesplatform.common.state.ByteStr
@@ -36,6 +52,9 @@ import org.slf4j.LoggerFactory
 import scala.annotation.tailrec
 import scala.jdk.CollectionConverters.*
 import scala.util.{Left, Right}
+import com.wavesplatform.database.protobuf
+import com.wavesplatform.api.http.TransactionsApiRoute
+import com.wavesplatform.state.InvokeScriptResult
 
 //noinspection ScalaStyle
 class UtxPoolImpl(
@@ -44,7 +63,8 @@ class UtxPoolImpl(
     utxSettings: UtxSettings,
     isMiningEnabled: Boolean,
     onEvent: UtxEvent => Unit = _ => (),
-    nanoTimeSource: () => TxTimestamp = () => System.nanoTime()
+    nanoTimeSource: () => TxTimestamp = () => System.nanoTime(),
+    db: Option[DB] = None
 ) extends ScorexLogging
     with AutoCloseable
     with UtxPool {
@@ -442,12 +462,117 @@ class UtxPoolImpl(
   }
 
   private[this] object TxStateActions {
+    
+
+    // val db       = openDB(settings.dbSettings.directory) // openDB(context.settings.directory)
+    // def readTransactionMeta(id: String): Either[ApiError, TransactionMeta] =
+    //   for {
+    //     id   <- ByteStr.decodeBase58(id).toEither.leftMap(err => CustomValidationError(err.toString))
+    //     meta <- CommonTransactionsApi.transactionById(id).toRight(ApiError.TransactionDoesNotExist)
+    //   } yield meta
+    
+    def transactionMetaById(transactionId: ByteStr, db: DB, diff: Option[Diff]): Option[TransactionMeta] = {
+      
+
+      blockchain.transactionInfo(transactionId).map(common.loadTransactionMeta(db, Some((blockchain.height, diff.get))))
+
+      // blockchain.transactionInfo(transactionId).map(common.loadTransactionMeta(db, Some(blockchain.height, diff.get)))
+      
+      // diff match {
+      //   case Some(diff) => {
+      //     blockchain.transactionInfo(transactionId).map(common.loadTransactionMeta(db, Some(blockchain.height, diff)))
+      //   }
+      //   case _ => blockchain.transactionInfo(transactionId).map(common.loadTransactionMeta(db))
+      // }
+    }
+
+    def transactionMetaJsonString(meta: TransactionMeta): String = {
+      // val specificInfo = Json.obj()
+      // val specificInfo = meta.transaction match {
+      //   case lease: LeaseTransaction =>
+      //     import com.wavesplatform.api.http.TransactionsApiRoute.LeaseStatus._
+      //     Json.obj("status" -> (if (blockchain.leaseDetails(lease.id()).exists(_.isActive)) active else canceled))
+
+      //   case leaseCancel: LeaseCancelTransaction =>
+      //     Json.obj("lease" -> leaseIdToLeaseRef(leaseCancel.leaseId))
+
+      //   case _ => JsObject.empty
+      // }
+
+      val result: String = meta match {
+        case i: TransactionMeta.Invoke => {
+          val ir = Json.obj("stateChanges" -> i.invokeScriptResult)
+          log.info(s"stateChanges: ${ir.keys}")
+          ir.toString()
+        }
+        case _ => {
+          log.info(s"Not a TransactionMeta.Invoke!")
+          Json.obj().toString()
+        }
+      }
+      result
+
+      // val str: String = metaJson match {
+      //   case Some(x:JsString) => x.as[String]
+      //   case _       => ""
+      // }
+      
+    }
+
     def addReceived(tx: Transaction, diff: Option[Diff]): Unit =
       UtxPoolImpl.this.transactions.computeIfAbsent(
         tx.id(), { _ =>
           PoolMetrics.addTransaction(tx)
           ResponsivenessLogs.writeEvent(blockchain.height, tx, ResponsivenessLogs.TxEvent.Received)
           diff.foreach(diff => onEvent(UtxEvent.TxAdded(tx, diff))) // Only emits event if diff was computed
+          // Pütti:
+          // log.info(s"DB details: ${db.getOrElse("No DB found.")}") // get gives None
+          // val maybe_isr = common.AddressTransactions.loadInvokeScriptResult(db.get, tx.id())
+          // log.info(s"ISR details: ${maybe_isr.getOrElse("No ISR found.")}") // get gives None
+          // log.info(s"Diff details: ${diff.get.scriptResults.get(tx.id()).toList.foreach(println)}")
+          val sr_list = diff.get.scriptResults.get(tx.id()).toList
+          for (sr <- sr_list) {
+            log.info(s"ISR: ${Json.toJsObject(sr)}")
+          }
+          // for (sr <- sr_list) {
+          //   Try{Json.toJsObject(InvokeScriptResult.fromLangResult(tx.id(), sr))} match {
+          //     case Success(x) => {log.info("Successfully converted SR to ISR.")}
+          //     case Failure(e) => log.info("Conversion of SR failed. Maybe not an InvokeScript Transaction.")
+          //   }
+          // }
+          
+          // invokescriptresult.jsonFormat()
+          // Json.toJsObject(InvokeScriptResult())
+
+          db match {
+            case Some(valid_db) => {
+              val metaData = CommonTransactionsApi.transactionMetaById(tx.id(), blockchain, valid_db, diff)
+              // val metaData = CommonTransactionsApi.transactionMetaById(ByteStr("CUwbtzzPMomP9Y1tCGTKtiiYuv6Y37rQg4Ku1uqLxQg4".getBytes()), blockchain, valid_db, diff)
+              // var metaData = TransactionsApiRoute.readTransactionMeta(tx.id())
+              // var metaData = blockchain.transactionMeta(tx.id()) // just gives height, complexity and success
+              metaData.getOrElse((None)) match {
+                case real_metaData: TransactionMeta => {
+                  val ir = transactionMetaJsonString(real_metaData)
+                  log.info(s"New Script Invocation UTX with StateChanges: ${ir}")
+                }
+                case _ => log.info(s"No metaData retrieved. Height: ${blockchain.height}, DB: ${valid_db.hashCode()}, Diff: ${diff.get.hashString}")
+              }
+              
+            }
+            case _ => log.info(s"No db found.")
+
+          }
+          
+          
+
+
+          // val json = TransactionJsonSerializer.transactionWithMetaJson(metaData)
+          // val serializer = TransactionJsonSerializer(blockchain, CommonTransactionsApi)// commonApi)
+          // serializer.metaJson(meta)
+          log.info(s"Added UTX ${tx.id()} to pool.")
+          
+          // log.info(s"with ${Some(metaData.status)}")
+
           tx
         }
       )
