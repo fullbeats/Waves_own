@@ -129,6 +129,7 @@ lazy val `waves-node` = (project in file("."))
 inScope(Global)(
   Seq(
     scalaVersion         := "2.13.8",
+    // scalaVersion         := "2.10.0",
     organization         := "com.wavesplatform",
     organizationName     := "Waves Platform",
     organizationHomepage := Some(url("https://wavesplatform.com")),
@@ -237,3 +238,7 @@ def buildPackages: Command = Command("buildPackages")(_ => Network.networkParser
 }
 
 commands ++= Seq(checkPR, buildPackages)
+
+// libraryDependencies += "org.zeromq" %% "jzmq" % "3.1.0"
+// libraryDependencies += "com.mdialog" %% "scala-zeromq" % "1.2.0"
+

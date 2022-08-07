@@ -17,7 +17,15 @@ import play.api.libs.json._
 import com.wavesplatform.database.{DBExt, Keys, openDB}
 import org.iq80.leveldb.DB
 import scala.util.{Try, Success, Failure}
+import akka.actor.ActorSystem
+// import akka.zeromq.ZeroMQExtension
+import akka.actor.Actor
+// import akka.zeromq._
+import org.zeromq.ZMQ
+import akka.util.ByteString
 
+
+// import org.zeromq.{ZMQ, ZMQException}
 
 
 import com.wavesplatform.ResponsivenessLogs
@@ -75,6 +83,13 @@ class UtxPoolImpl(
   private[this] val cleanupScheduler: SchedulerService =
     Schedulers.singleThread("utx-pool-cleanup", executionModel = ExecutionModel.AlwaysAsyncExecution)
   private[this] val inUTXPoolOrdering = TransactionsOrdering.InUTXPool(utxSettings.fastLaneAddresses)
+
+  // Pütti ZMQ integration
+  // val pushSocket = ZeroMQ.socket(SocketType.Push)
+  // val pullSocket = ZeroMQ.socket(SocketType.Pull)
+  val Qcontext = ZMQ.context(1)
+  val socket = Qcontext.socket(ZMQ.PUB)
+  socket.bind("tcp://*:5556")
 
   // State
   val priorityPool               = new UtxPriorityPool(blockchain)
@@ -519,7 +534,7 @@ class UtxPoolImpl(
       
     }
 
-    def addReceived(tx: Transaction, diff: Option[Diff]): Unit =
+    def addReceived(tx: Transaction, diff: Option[Diff]): Unit = {
       UtxPoolImpl.this.transactions.computeIfAbsent(
         tx.id(), { _ =>
           PoolMetrics.addTransaction(tx)
@@ -530,10 +545,7 @@ class UtxPoolImpl(
           // val maybe_isr = common.AddressTransactions.loadInvokeScriptResult(db.get, tx.id())
           // log.info(s"ISR details: ${maybe_isr.getOrElse("No ISR found.")}") // get gives None
           // log.info(s"Diff details: ${diff.get.scriptResults.get(tx.id()).toList.foreach(println)}")
-          val sr_list = diff.get.scriptResults.get(tx.id()).toList
-          for (sr <- sr_list) {
-            log.info(s"ISR: ${Json.toJsObject(sr)}")
-          }
+          
           // for (sr <- sr_list) {
           //   Try{Json.toJsObject(InvokeScriptResult.fromLangResult(tx.id(), sr))} match {
           //     case Success(x) => {log.info("Successfully converted SR to ISR.")}
@@ -544,6 +556,8 @@ class UtxPoolImpl(
           // invokescriptresult.jsonFormat()
           // Json.toJsObject(InvokeScriptResult())
 
+         
+
           db match {
             case Some(valid_db) => {
               val metaData = CommonTransactionsApi.transactionMetaById(tx.id(), blockchain, valid_db, diff)
@@ -553,13 +567,13 @@ class UtxPoolImpl(
               metaData.getOrElse((None)) match {
                 case real_metaData: TransactionMeta => {
                   val ir = transactionMetaJsonString(real_metaData)
-                  log.info(s"New Script Invocation UTX with StateChanges: ${ir}")
+                  // log.info(s"New Script Invocation UTX with StateChanges: ${ir}")
                 }
-                case _ => log.info(s"No metaData retrieved. Height: ${blockchain.height}, DB: ${valid_db.hashCode()}, Diff: ${diff.get.hashString}")
+                case _ => //log.info(s"No metaData retrieved. Height: ${blockchain.height}, DB: ${valid_db.hashCode()}, Diff: ${diff.get.hashString}")
               }
               
             }
-            case _ => log.info(s"No db found.")
+            case _ => // log.info(s"No db found.")
 
           }
           
@@ -576,6 +590,21 @@ class UtxPoolImpl(
           tx
         }
       )
+      val tx_list = diff.get.transactions.toList
+      // Pütti: Idea to combine mmultiple Diffs ?!
+      // log.info(s"${tx_list.size} transactions contained in Diff.")
+      for (t <- tx_list) {
+        // log.info(s"Tx ${t.toString()}")
+      }
+
+      val sr_list = diff.get.scriptResults.get(tx.id()).toList // Idea: get ISRs of all UTXs since last block
+      // log.info(s"${sr_list.size} ScriptResults contained in Tx.")
+      for (sr <- sr_list) {
+        log.info(s"ISR of tx ${tx.id()}: ${Json.toJsObject(sr)}")
+      }
+    }
+      
+
 
     def removeMined(tx: Transaction): Unit = {
       ResponsivenessLogs.writeEvent(blockchain.height, tx, ResponsivenessLogs.TxEvent.Mined)
