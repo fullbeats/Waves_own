@@ -154,14 +154,17 @@ class UtxPoolImpl(
   
   // adapted from https://github.com/iRevive/fmq/blob/master/bench/src/main/scala/io/fmq/JeroMQSocketBenchmark.scala
   val ctx  = new ZContext()
-  val addr = s"tcp://localhost"
+  // val addr = s"tcp://localhost"
+  val addr = s"tcp://192.168.20.218"
 
   // val pull = ctx.createSocket(SocketType.PULL)
-  val port = 3333
+  val port = "3333"
 
-  val push = ctx.createSocket(SocketType.PUSH)
-  push.connect(addr + ":" + port)
-
+  // val push = ctx.createSocket(SocketType.PUSH)
+  val push = ctx.createSocket(SocketType.PUB)
+  
+  // push.connect(addr + ":" + port)
+  push.bind("tcp://*:"+port);
   // State
   val priorityPool               = new UtxPriorityPool(blockchain)
   private[this] val transactions = new ConcurrentHashMap[ByteStr, Transaction]()
@@ -676,6 +679,9 @@ class UtxPoolImpl(
           val message = sr_json.toString()
           // publisher.send("ISR".getBytes(), ZMQ.SNDMORE)
           // publisher.send(message.getBytes(), 0)
+          // push.send(message)
+          push.send("ISR".getBytes(), ZMQ.SNDMORE)
+          push.send(message.getBytes(), 0)
         }
       
       } catch {
