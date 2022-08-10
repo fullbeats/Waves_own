@@ -130,6 +130,7 @@ inScope(Global)(
   Seq(
     scalaVersion         := "2.13.8",
     // scalaVersion         := "2.10.0",
+    // scalaVersion         := "2.11.0",
     organization         := "com.wavesplatform",
     organizationName     := "Waves Platform",
     organizationHomepage := Some(url("https://wavesplatform.com")),

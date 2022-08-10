@@ -18,11 +18,25 @@ import com.wavesplatform.database.{DBExt, Keys, openDB}
 import org.iq80.leveldb.DB
 import scala.util.{Try, Success, Failure}
 import akka.actor.ActorSystem
-// import akka.zeromq.ZeroMQExtension
 import akka.actor.Actor
-// import akka.zeromq._
-import org.zeromq.ZMQ
 import akka.util.ByteString
+
+import org.zeromq.ZMQ
+import org.zeromq.{SocketType, ZContext}
+// import zmq.ZMQversion
+import io.fmq.frame.Frame
+import io.fmq.Context
+import io.fmq.socket.pubsub.Publisher
+import io.fmq.syntax.literals._
+import cats.effect.{Resource, IO, IOApp, Timer}
+import java.util.concurrent.Executors
+import cats.syntax.functor._
+
+
+// import akka.zeromq.Bind
+// import akka.zeromq.SocketType
+// import akka.zeromq.ZeroMQExtension
+// import akka.zeromq._
 
 
 // import org.zeromq.{ZMQ, ZMQException}
@@ -87,9 +101,66 @@ class UtxPoolImpl(
   // Pütti ZMQ integration
   // val pushSocket = ZeroMQ.socket(SocketType.Push)
   // val pullSocket = ZeroMQ.socket(SocketType.Pull)
-  val Qcontext = ZMQ.context(1)
-  val socket = Qcontext.socket(ZMQ.PUB)
-  socket.bind("tcp://*:5556")
+  val context = ZMQ.context(1)
+  val zmq_publisher = context.socket(ZMQ.PUB)
+  zmq_publisher.bind("tcp://*:5556")
+
+
+
+  // val publisherResource: Resource[IO, Publisher[IO]] =
+  // for {
+  //   context   <- Context.create[IO](1)
+  //   publisher <- Resource.eval(context.createPublisher)
+  // } yield publisher
+
+  // val specificPort: Resource[IO, Publisher.Socket[IO]] = 
+  // for {
+  //   publisher <- publisherResource
+  //   connected <- publisher.bind(tcp"://localhost:31234")
+  // } yield connected
+
+  // // val fmq_pub = publisher.bind(tcp"://localhost:31234")
+
+  // publisher.sendMultipart(Frame.Multipart(topicA, "We don't want to see this"))
+
+
+
+
+
+  // val publisherResource: Resource[IO, Publisher[IO]] =
+  // for {
+  //   context   <- Context.create[IO](1)
+  //   publisher <- Resource.eval(context.createPublisher)
+  // } yield publisher
+
+  // val specificPort: Resource[IO, Publisher.Socket[IO]] = 
+  //   for {
+  //     publisher <- publisherResource
+  //     connected <- publisher.bind(tcp"://localhost:31234")
+  //   } yield connected
+
+
+  // val ctx = Context.create[IO](1)
+  // val pub = ctx.createPublisher()
+  // val fmq_pub = pub.bind(tcp"://localhost:31234")
+  // fmq_pub.sendMultipart(Frame.Multipart("StateChanges", "This is a test."))
+
+  // val ((pull, push), _) =
+  //     (for {
+  //       context  <- Context.create[IO](1)
+  //       consumer <- Resource.suspend(context.createPull.map(_.bindToRandomPort(uri)))
+  //       producer <- Resource.suspend(context.createPush.map(_.connect(consumer.uri)))
+  //     } yield (consumer, producer)).allocated.unsafeRunSync()
+  
+  // adapted from https://github.com/iRevive/fmq/blob/master/bench/src/main/scala/io/fmq/JeroMQSocketBenchmark.scala
+  val ctx  = new ZContext()
+  val addr = s"tcp://localhost"
+
+  // val pull = ctx.createSocket(SocketType.PULL)
+  val port = 3333
+
+  val push = ctx.createSocket(SocketType.PUSH)
+  push.connect(addr + ":" + port)
 
   // State
   val priorityPool               = new UtxPriorityPool(blockchain)
@@ -558,24 +629,24 @@ class UtxPoolImpl(
 
          
 
-          db match {
-            case Some(valid_db) => {
-              val metaData = CommonTransactionsApi.transactionMetaById(tx.id(), blockchain, valid_db, diff)
-              // val metaData = CommonTransactionsApi.transactionMetaById(ByteStr("CUwbtzzPMomP9Y1tCGTKtiiYuv6Y37rQg4Ku1uqLxQg4".getBytes()), blockchain, valid_db, diff)
-              // var metaData = TransactionsApiRoute.readTransactionMeta(tx.id())
-              // var metaData = blockchain.transactionMeta(tx.id()) // just gives height, complexity and success
-              metaData.getOrElse((None)) match {
-                case real_metaData: TransactionMeta => {
-                  val ir = transactionMetaJsonString(real_metaData)
-                  // log.info(s"New Script Invocation UTX with StateChanges: ${ir}")
-                }
-                case _ => //log.info(s"No metaData retrieved. Height: ${blockchain.height}, DB: ${valid_db.hashCode()}, Diff: ${diff.get.hashString}")
-              }
+          // db match {
+          //   case Some(valid_db) => {
+          //     val metaData = CommonTransactionsApi.transactionMetaById(tx.id(), blockchain, valid_db, diff)
+          //     // val metaData = CommonTransactionsApi.transactionMetaById(ByteStr("CUwbtzzPMomP9Y1tCGTKtiiYuv6Y37rQg4Ku1uqLxQg4".getBytes()), blockchain, valid_db, diff)
+          //     // var metaData = TransactionsApiRoute.readTransactionMeta(tx.id())
+          //     // var metaData = blockchain.transactionMeta(tx.id()) // just gives height, complexity and success
+          //     metaData.getOrElse(None) match {
+          //       case real_metaData: TransactionMeta => {
+          //         val ir = transactionMetaJsonString(real_metaData)
+          //         // log.info(s"New Script Invocation UTX with StateChanges: ${ir}")
+          //       }
+          //       case _ => //log.info(s"No metaData retrieved. Height: ${blockchain.height}, DB: ${valid_db.hashCode()}, Diff: ${diff.get.hashString}")
+          //     }
               
-            }
-            case _ => // log.info(s"No db found.")
+          //   }
+          //   case _ => // log.info(s"No db found.")
 
-          }
+          // }
           
           
 
@@ -590,18 +661,27 @@ class UtxPoolImpl(
           tx
         }
       )
-      val tx_list = diff.get.transactions.toList
+      // val tx_list = diff.get.transactions.toList
       // Pütti: Idea to combine mmultiple Diffs ?!
       // log.info(s"${tx_list.size} transactions contained in Diff.")
-      for (t <- tx_list) {
+      // for (t <- tx_list) {
         // log.info(s"Tx ${t.toString()}")
+      // }
+      try {
+        val sr_list = diff.get.scriptResults.get(tx.id()).toList // Idea: get ISRs of all UTXs since last block
+        // log.info(s"${sr_list.size} ScriptResults contained in Tx.")
+        for (sr <- sr_list) {
+          val sr_json = Json.toJsObject(sr)
+          log.info(s"ISR of tx ${tx.id()}: ${sr_json}")
+          val message = sr_json.toString()
+          // publisher.send("ISR".getBytes(), ZMQ.SNDMORE)
+          // publisher.send(message.getBytes(), 0)
+        }
+      
+      } catch {
+        case e: java.util.NoSuchElementException => log.info(s"Exception: ${e.getMessage}")
       }
-
-      val sr_list = diff.get.scriptResults.get(tx.id()).toList // Idea: get ISRs of all UTXs since last block
-      // log.info(s"${sr_list.size} ScriptResults contained in Tx.")
-      for (sr <- sr_list) {
-        log.info(s"ISR of tx ${tx.id()}: ${Json.toJsObject(sr)}")
-      }
+      
     }
       
 
