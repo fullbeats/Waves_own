@@ -124,7 +124,8 @@ class Application(val actorSystem: ActorSystem, val settings: WavesSettings, con
     val establishedConnections = new ConcurrentHashMap[Channel, PeerInfo]
     val allChannels            = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE)
     val utxStorage =
-      new UtxPoolImpl(time, blockchainUpdater, settings.utxSettings, settings.minerSettings.enable, utxEvents.onNext)
+      // Pütti modified passing db object here
+      new UtxPoolImpl(time, blockchainUpdater, settings.utxSettings, settings.minerSettings.enable, utxEvents.onNext, db = Some(db))
     maybeUtx = Some(utxStorage)
 
     val timer                 = new HashedWheelTimer()
@@ -133,7 +134,8 @@ class Application(val actorSystem: ActorSystem, val settings: WavesSettings, con
       Schedulers.timeBoundedFixedPool(
         timer,
         5.seconds,
-        settings.synchronizationSettings.utxSynchronizer.maxThreads,
+        // Pütti: Set max Threads to 1. Old: settings.synchronizationSettings.utxSynchronizer.maxThreads,
+        1,
         "utx-time-bounded-tx-validator",
         reporter = utxSynchronizerLogger.trace("Uncaught exception in UTX Synchronizer", _)
       )
@@ -145,7 +147,7 @@ class Application(val actorSystem: ActorSystem, val settings: WavesSettings, con
     if (settings.minerSettings.enable)
       miner =
         new MinerImpl(allChannels, blockchainUpdater, settings, time, utxStorage, wallet, pos, minerScheduler, appenderScheduler, utxEvents.collect {
-          case _: UtxEvent.TxAdded => ()
+          case _: UtxEvent.TxAdded => (log.info(s"Added UTX by MinerImpl to pool."))
         })
 
     val processBlock =
