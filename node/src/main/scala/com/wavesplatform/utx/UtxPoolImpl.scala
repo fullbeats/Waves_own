@@ -153,7 +153,8 @@ class UtxPoolImpl(
   //     } yield (consumer, producer)).allocated.unsafeRunSync()
   
   // adapted from https://github.com/iRevive/fmq/blob/master/bench/src/main/scala/io/fmq/JeroMQSocketBenchmark.scala
-  val ctx  = new ZContext()
+  val ctx  = new ZContext() // alternativ: ZMQ.context(1)
+  // val ctx = ZMQ.context(1)
   // val addr = s"tcp://localhost"
   val addr = s"tcp://192.168.20.218"
 
@@ -161,7 +162,11 @@ class UtxPoolImpl(
   val port = "3333"
 
   // val push = ctx.createSocket(SocketType.PUSH)
-  val push = ctx.createSocket(SocketType.PUB)
+  val push = ctx.createSocket(ZMQ.XPUB)
+  push.setSendBufferSize(200000)
+  push.setHWM(0)
+
+  // val push = ctx.socket(SocketType.PUB)
   
   // push.connect(addr + ":" + port)
   push.bind("tcp://*:"+port);
@@ -675,13 +680,18 @@ class UtxPoolImpl(
         // log.info(s"${sr_list.size} ScriptResults contained in Tx.")
         for (sr <- sr_list) {
           val sr_json = Json.toJsObject(sr)
+
+          // check if values in json are present
+          log.info(s"${sr_json.values}")
+
+
           log.info(s"ISR of tx ${tx.id()}: ${sr_json}")
           val message = sr_json.toString()
           // publisher.send("ISR".getBytes(), ZMQ.SNDMORE)
           // publisher.send(message.getBytes(), 0)
           // push.send(message)
-          push.send("ISR".getBytes(), ZMQ.SNDMORE)
-          push.send(message.getBytes(), 0)
+          push.send("ISR", ZMQ.SNDMORE)
+          push.send(message, 0)
         }
       
       } catch {
