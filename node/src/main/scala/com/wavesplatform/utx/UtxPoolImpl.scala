@@ -31,6 +31,7 @@ import io.fmq.syntax.literals._
 import cats.effect.{Resource, IO, IOApp, Timer}
 import java.util.concurrent.Executors
 import cats.syntax.functor._
+import java.time._
 
 
 // import akka.zeromq.Bind
@@ -676,22 +677,32 @@ class UtxPoolImpl(
         // log.info(s"Tx ${t.toString()}")
       // }
       try {
-        val sr_list = diff.get.scriptResults.get(tx.id()).toList // Idea: get ISRs of all UTXs since last block
+        var sr_list = diff.get.scriptResults.get(tx.id()).toList // Idea: get ISRs of all UTXs since last block
         // log.info(s"${sr_list.size} ScriptResults contained in Tx.")
         for (sr <- sr_list) {
-          val sr_json = Json.toJsObject(sr)
+          var sr_json = Json.toJsObject(sr)
 
           // check if values in json are present
-          log.info(s"${sr_json.values}")
-
-
+          log.info(s"${sr_json.values}\nMkstring: ${sr_json.values.mkString}")
+          var i = 0
+          while (sr_json.values.toList.mkString == "[][][][][][][][][]" && i < 100) {
+            log.info(s"Skipped empty ISR list at Tx ${tx.id()} ${i}x.")
+            Thread.sleep(200)
+            sr_list = diff.get.scriptResults.get(tx.id()).toList
+            sr_json = Json.toJsObject(sr)
+            i += 1
+          } 
+          
           log.info(s"ISR of tx ${tx.id()}: ${sr_json}")
           val message = sr_json.toString()
           // publisher.send("ISR".getBytes(), ZMQ.SNDMORE)
           // publisher.send(message.getBytes(), 0)
           // push.send(message)
           push.send("ISR", ZMQ.SNDMORE)
-          push.send(message, 0)
+          push.send(message, 0)          
+
+
+          
         }
       
       } catch {
