@@ -39,3 +39,12 @@ package
 native
 
 !lang/jvm/lib/*.jar
+
+# Scala Metals
+.metals/
+.bloop/
+.ammonite/
+metals.sbt
+
+# exclude blockchaindata
+~/_blockchaindata/*
