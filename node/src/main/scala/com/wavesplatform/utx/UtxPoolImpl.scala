@@ -678,12 +678,13 @@ class UtxPoolImpl(
       // }
       try {
         var sr_list = diff.get.scriptResults.get(tx.id()).toList // Idea: get ISRs of all UTXs since last block
+        
         // log.info(s"${sr_list.size} ScriptResults contained in Tx.")
         for (sr <- sr_list) {
           var sr_json = Json.toJsObject(sr)
 
-          // check if values in json are present
-          log.info(s"${sr_json.values}\nMkstring: ${sr_json.values.mkString}")
+          
+          /*
           var i = 0
           while (sr_json.values.toList.mkString == "[][][][][][][][][]" && i < 100) {
             log.info(s"Skipped empty ISR list at Tx ${tx.id()} ${i}x.")
@@ -692,16 +693,30 @@ class UtxPoolImpl(
             sr_json = Json.toJsObject(sr)
             i += 1
           } 
+          */
+
+          if (sr_json.values.toList.mkString == "[][][][][][][][][]") {
+            log.info(s"Skipped empty ISR list at Tx ${tx.id()}")
+            return
+          }
+
+          var tx_json = tx.json()
+          val msg_json = tx_json.+("stateChanges", Json.toJsObject(sr))
+          val message = msg_json.toString()
+
+          // log.info(s"${sr_json.values}\n")
+          log.info(s"ISR DetailInfo for Tx ${tx.id()}: \n${msg_json}\n")
+          // log.info(s"ETH Transaction Meta of tx ${tx.id()}: ${diff.get.ethereumTransactionMeta.toString()}") // this is useless
+          // log.info(s"Tx Json of tx ${tx.id()}: ${tx.json()}")
+
           
-          log.info(s"ISR of tx ${tx.id()}: ${sr_json}")
-          val message = sr_json.toString()
           // publisher.send("ISR".getBytes(), ZMQ.SNDMORE)
           // publisher.send(message.getBytes(), 0)
           // push.send(message)
           push.send("ISR", ZMQ.SNDMORE)
           push.send(message, 0)          
 
-
+          
           
         }
       
