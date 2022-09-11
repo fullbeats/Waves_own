@@ -4,35 +4,6 @@ import java.time.Duration
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.ConcurrentHashMap
 
-// Pütti added these
-import com.wavesplatform.api.common.TransactionMeta
-import com.wavesplatform.api.common.{CommonAccountsApi, CommonAssetsApi, CommonTransactionsApi}
-import com.wavesplatform.api.http.TransactionsApiRoute.TransactionJsonSerializer
-import com.wavesplatform.api.http.TransactionsApiRoute
-import com.wavesplatform.common.state.ByteStr
-import com.wavesplatform.api.http.ApiError._
-import com.wavesplatform.api.http.ApiError
-import com.wavesplatform.api.{BlockMeta, common}
-import play.api.libs.json._
-import com.wavesplatform.database.{DBExt, Keys, openDB}
-import org.iq80.leveldb.DB
-import scala.util.{Try, Success, Failure}
-import akka.actor.ActorSystem
-import akka.actor.Actor
-import akka.util.ByteString
-
-import org.zeromq.ZMQ
-import org.zeromq.{SocketType, ZContext}
-import io.fmq.frame.Frame
-import io.fmq.Context
-import io.fmq.socket.pubsub.Publisher
-import io.fmq.syntax.literals._
-import cats.effect.{Resource, IO, IOApp, Timer}
-import java.util.concurrent.Executors
-import cats.syntax.functor._
-import java.time._
-
-
 import com.wavesplatform.ResponsivenessLogs
 import com.wavesplatform.account.Address
 import com.wavesplatform.common.state.ByteStr
@@ -68,6 +39,17 @@ import scala.util.{Left, Right}
 import com.wavesplatform.database.protobuf
 import com.wavesplatform.api.http.TransactionsApiRoute
 import com.wavesplatform.state.InvokeScriptResult
+
+// Pütti added these
+import com.wavesplatform.api.common.TransactionMeta
+import com.wavesplatform.api.{BlockMeta, common}
+import play.api.libs.json._
+import com.wavesplatform.database.{DBExt, Keys, openDB}
+import org.iq80.leveldb.DB
+import scala.util.{Try, Success, Failure}
+import org.zeromq.ZMQ
+import org.zeromq.{SocketType, ZContext}
+import java.time._
 
 //noinspection ScalaStyle
 class UtxPoolImpl(
