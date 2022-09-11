@@ -23,7 +23,6 @@ import akka.util.ByteString
 
 import org.zeromq.ZMQ
 import org.zeromq.{SocketType, ZContext}
-// import zmq.ZMQversion
 import io.fmq.frame.Frame
 import io.fmq.Context
 import io.fmq.socket.pubsub.Publisher
@@ -32,15 +31,6 @@ import cats.effect.{Resource, IO, IOApp, Timer}
 import java.util.concurrent.Executors
 import cats.syntax.functor._
 import java.time._
-
-
-// import akka.zeromq.Bind
-// import akka.zeromq.SocketType
-// import akka.zeromq.ZeroMQExtension
-// import akka.zeromq._
-
-
-// import org.zeromq.{ZMQ, ZMQException}
 
 
 import com.wavesplatform.ResponsivenessLogs
@@ -100,77 +90,16 @@ class UtxPoolImpl(
   private[this] val inUTXPoolOrdering = TransactionsOrdering.InUTXPool(utxSettings.fastLaneAddresses)
 
   // Pütti ZMQ integration
-  // val pushSocket = ZeroMQ.socket(SocketType.Push)
-  // val pullSocket = ZeroMQ.socket(SocketType.Pull)
-  val context = ZMQ.context(1)
-  val zmq_publisher = context.socket(ZMQ.PUB)
-  zmq_publisher.bind("tcp://*:5556")
-
-
-
-  // val publisherResource: Resource[IO, Publisher[IO]] =
-  // for {
-  //   context   <- Context.create[IO](1)
-  //   publisher <- Resource.eval(context.createPublisher)
-  // } yield publisher
-
-  // val specificPort: Resource[IO, Publisher.Socket[IO]] = 
-  // for {
-  //   publisher <- publisherResource
-  //   connected <- publisher.bind(tcp"://localhost:31234")
-  // } yield connected
-
-  // // val fmq_pub = publisher.bind(tcp"://localhost:31234")
-
-  // publisher.sendMultipart(Frame.Multipart(topicA, "We don't want to see this"))
-
-
-
-
-
-  // val publisherResource: Resource[IO, Publisher[IO]] =
-  // for {
-  //   context   <- Context.create[IO](1)
-  //   publisher <- Resource.eval(context.createPublisher)
-  // } yield publisher
-
-  // val specificPort: Resource[IO, Publisher.Socket[IO]] = 
-  //   for {
-  //     publisher <- publisherResource
-  //     connected <- publisher.bind(tcp"://localhost:31234")
-  //   } yield connected
-
-
-  // val ctx = Context.create[IO](1)
-  // val pub = ctx.createPublisher()
-  // val fmq_pub = pub.bind(tcp"://localhost:31234")
-  // fmq_pub.sendMultipart(Frame.Multipart("StateChanges", "This is a test."))
-
-  // val ((pull, push), _) =
-  //     (for {
-  //       context  <- Context.create[IO](1)
-  //       consumer <- Resource.suspend(context.createPull.map(_.bindToRandomPort(uri)))
-  //       producer <- Resource.suspend(context.createPush.map(_.connect(consumer.uri)))
-  //     } yield (consumer, producer)).allocated.unsafeRunSync()
-  
   // adapted from https://github.com/iRevive/fmq/blob/master/bench/src/main/scala/io/fmq/JeroMQSocketBenchmark.scala
   val ctx  = new ZContext() // alternativ: ZMQ.context(1)
-  // val ctx = ZMQ.context(1)
-  // val addr = s"tcp://localhost"
   val addr = s"tcp://192.168.20.218"
-
-  // val pull = ctx.createSocket(SocketType.PULL)
   val port = "3333"
 
-  // val push = ctx.createSocket(SocketType.PUSH)
   val push = ctx.createSocket(ZMQ.XPUB)
   push.setSendBufferSize(200000)
   push.setHWM(0)
-
-  // val push = ctx.socket(SocketType.PUB)
-  
-  // push.connect(addr + ":" + port)
   push.bind("tcp://*:"+port);
+
   // State
   val priorityPool               = new UtxPriorityPool(blockchain)
   private[this] val transactions = new ConcurrentHashMap[ByteStr, Transaction]()
@@ -557,43 +486,12 @@ class UtxPoolImpl(
   }
 
   private[this] object TxStateActions {
-    
-
-    // val db       = openDB(settings.dbSettings.directory) // openDB(context.settings.directory)
-    // def readTransactionMeta(id: String): Either[ApiError, TransactionMeta] =
-    //   for {
-    //     id   <- ByteStr.decodeBase58(id).toEither.leftMap(err => CustomValidationError(err.toString))
-    //     meta <- CommonTransactionsApi.transactionById(id).toRight(ApiError.TransactionDoesNotExist)
-    //   } yield meta
-    
+       
     def transactionMetaById(transactionId: ByteStr, db: DB, diff: Option[Diff]): Option[TransactionMeta] = {
-      
-
       blockchain.transactionInfo(transactionId).map(common.loadTransactionMeta(db, Some((blockchain.height, diff.get))))
-
-      // blockchain.transactionInfo(transactionId).map(common.loadTransactionMeta(db, Some(blockchain.height, diff.get)))
-      
-      // diff match {
-      //   case Some(diff) => {
-      //     blockchain.transactionInfo(transactionId).map(common.loadTransactionMeta(db, Some(blockchain.height, diff)))
-      //   }
-      //   case _ => blockchain.transactionInfo(transactionId).map(common.loadTransactionMeta(db))
-      // }
     }
 
     def transactionMetaJsonString(meta: TransactionMeta): String = {
-      // val specificInfo = Json.obj()
-      // val specificInfo = meta.transaction match {
-      //   case lease: LeaseTransaction =>
-      //     import com.wavesplatform.api.http.TransactionsApiRoute.LeaseStatus._
-      //     Json.obj("status" -> (if (blockchain.leaseDetails(lease.id()).exists(_.isActive)) active else canceled))
-
-      //   case leaseCancel: LeaseCancelTransaction =>
-      //     Json.obj("lease" -> leaseIdToLeaseRef(leaseCancel.leaseId))
-
-      //   case _ => JsObject.empty
-      // }
-
       val result: String = meta match {
         case i: TransactionMeta.Invoke => {
           val ir = Json.obj("stateChanges" -> i.invokeScriptResult)
@@ -606,12 +504,6 @@ class UtxPoolImpl(
         }
       }
       result
-
-      // val str: String = metaJson match {
-      //   case Some(x:JsString) => x.as[String]
-      //   case _       => ""
-      // }
-      
     }
 
     def addReceived(tx: Transaction, diff: Option[Diff]): Unit = {
@@ -620,80 +512,17 @@ class UtxPoolImpl(
           PoolMetrics.addTransaction(tx)
           ResponsivenessLogs.writeEvent(blockchain.height, tx, ResponsivenessLogs.TxEvent.Received)
           diff.foreach(diff => onEvent(UtxEvent.TxAdded(tx, diff))) // Only emits event if diff was computed
-          // Pütti:
-          // log.info(s"DB details: ${db.getOrElse("No DB found.")}") // get gives None
-          // val maybe_isr = common.AddressTransactions.loadInvokeScriptResult(db.get, tx.id())
-          // log.info(s"ISR details: ${maybe_isr.getOrElse("No ISR found.")}") // get gives None
-          // log.info(s"Diff details: ${diff.get.scriptResults.get(tx.id()).toList.foreach(println)}")
-          
-          // for (sr <- sr_list) {
-          //   Try{Json.toJsObject(InvokeScriptResult.fromLangResult(tx.id(), sr))} match {
-          //     case Success(x) => {log.info("Successfully converted SR to ISR.")}
-          //     case Failure(e) => log.info("Conversion of SR failed. Maybe not an InvokeScript Transaction.")
-          //   }
-          // }
-          
-          // invokescriptresult.jsonFormat()
-          // Json.toJsObject(InvokeScriptResult())
-
-         
-
-          // db match {
-          //   case Some(valid_db) => {
-          //     val metaData = CommonTransactionsApi.transactionMetaById(tx.id(), blockchain, valid_db, diff)
-          //     // val metaData = CommonTransactionsApi.transactionMetaById(ByteStr("CUwbtzzPMomP9Y1tCGTKtiiYuv6Y37rQg4Ku1uqLxQg4".getBytes()), blockchain, valid_db, diff)
-          //     // var metaData = TransactionsApiRoute.readTransactionMeta(tx.id())
-          //     // var metaData = blockchain.transactionMeta(tx.id()) // just gives height, complexity and success
-          //     metaData.getOrElse(None) match {
-          //       case real_metaData: TransactionMeta => {
-          //         val ir = transactionMetaJsonString(real_metaData)
-          //         // log.info(s"New Script Invocation UTX with StateChanges: ${ir}")
-          //       }
-          //       case _ => //log.info(s"No metaData retrieved. Height: ${blockchain.height}, DB: ${valid_db.hashCode()}, Diff: ${diff.get.hashString}")
-          //     }
-              
-          //   }
-          //   case _ => // log.info(s"No db found.")
-
-          // }
-          
-          
-
-
-          // val json = TransactionJsonSerializer.transactionWithMetaJson(metaData)
-          // val serializer = TransactionJsonSerializer(blockchain, CommonTransactionsApi)// commonApi)
-          // serializer.metaJson(meta)
           log.info(s"Added UTX ${tx.id()} to pool.")
-          
-          // log.info(s"with ${Some(metaData.status)}")
-
           tx
         }
       )
-      // val tx_list = diff.get.transactions.toList
-      // Pütti: Idea to combine mmultiple Diffs ?!
-      // log.info(s"${tx_list.size} transactions contained in Diff.")
-      // for (t <- tx_list) {
-        // log.info(s"Tx ${t.toString()}")
-      // }
+
       try {
         var sr_list = diff.get.scriptResults.get(tx.id()).toList // Idea: get ISRs of all UTXs since last block
         
         // log.info(s"${sr_list.size} ScriptResults contained in Tx.")
         for (sr <- sr_list) {
           var sr_json = Json.toJsObject(sr)
-
-          
-          /*
-          var i = 0
-          while (sr_json.values.toList.mkString == "[][][][][][][][][]" && i < 100) {
-            log.info(s"Skipped empty ISR list at Tx ${tx.id()} ${i}x.")
-            Thread.sleep(200)
-            sr_list = diff.get.scriptResults.get(tx.id()).toList
-            sr_json = Json.toJsObject(sr)
-            i += 1
-          } 
-          */
 
           if (sr_json.values.toList.mkString == "[][][][][][][][][]") {
             log.info(s"Skipped empty ISR list at Tx ${tx.id()}")
@@ -706,18 +535,12 @@ class UtxPoolImpl(
 
           // log.info(s"${sr_json.values}\n")
           log.info(s"ISR DetailInfo for Tx ${tx.id()}: \n${msg_json}\n")
-          // log.info(s"ETH Transaction Meta of tx ${tx.id()}: ${diff.get.ethereumTransactionMeta.toString()}") // this is useless
           // log.info(s"Tx Json of tx ${tx.id()}: ${tx.json()}")
-
-          
           // publisher.send("ISR".getBytes(), ZMQ.SNDMORE)
           // publisher.send(message.getBytes(), 0)
           // push.send(message)
           push.send("ISR", ZMQ.SNDMORE)
           push.send(message, 0)          
-
-          
-          
         }
       
       } catch {
@@ -726,8 +549,6 @@ class UtxPoolImpl(
       
     }
       
-
-
     def removeMined(tx: Transaction): Unit = {
       ResponsivenessLogs.writeEvent(blockchain.height, tx, ResponsivenessLogs.TxEvent.Mined)
       onEvent(UtxEvent.TxRemoved(tx, None))
