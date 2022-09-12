@@ -55,7 +55,12 @@ sudo apt install default-jdk
 ```
 
 ## Troubleshooting
-Executing the .jar files sometimes results in a strange error about unknown characters. Just recompile the whole project as follows:
+Executing the .jar files sometimes results in a strange error about forbidden characters. 
+```
+"[...] Reserved character '!' is not allowed outside quote [...]"
+```
+
+Just recompile the whole project as follows:
 ```bash
 sbt clean
 sbt packageAll
