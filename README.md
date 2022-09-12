@@ -1,31 +1,5 @@
 <h1 align="center">🔷 Waves Node</h1>
 
-<p align="center">
-  <a href="https://github.com/wavesplatform/Waves/actions" target="_blank">
-    <img alt="Checks status" src="https://badgen.net/github/checks/wavesplatform/waves?cache=600"  />
-  </a>
-  <a href="https://github.com/wavesplatform/Waves/releases" target="_blank">
-    <img alt="Downloads" src="https://badgen.net/github/assets-dl/wavesplatform/waves?color=blue" />
-  </a>
-  <a href="https://hub.docker.com/r/wavesplatform/wavesnode" target="_blank">
-    <img alt="Docker pulls" src="https://badgen.net/docker/pulls/wavesplatform/wavesnode?icon=docker" />
-  </a>
-
-  <br/>
-
-  <a href="https://twitter.com/wavesprotocol" target="_blank">
-    <img alt="Twitter: Waves Tech" src="https://badgen.net/twitter/follow/wavesprotocol?icon=twitter&label=follow%20on%20Twitter" />
-  </a>
-  <a href="https://medium.com/wavesprotocol" target="_blank">
-    <img alt="Medium: Waves Tech" src="https://badgen.net/runkit/msmolyakov/get-medium-followers?icon=medium&cache=86400" />
-  </a>
-  <a href="https://t.me/waves_ride_dapps_dev" target="_blank">
-    <img alt="Telegram" src="https://badgen.net/badge/icon/Waves%20Dev%20Jedi?icon=telegram&label=Telegram"/>
-  </a>
-  <a href="https://github.com/msmolyakov/awesome-waves" target="_blank">
-    <img alt="Awesome Waves" src="https://badgen.net/badge/icon/Awesome%20Waves?icon=awesome&label&color=pink" />
-  </a>
-</p>
 
 > Waves is an open source [blockchain protocol](https://waves.tech/waves-protocol). <br/> 
 You can use it to build your own decentralized applications. Waves provides full blockchain ecosystem including smart contracts language called RIDE.
@@ -46,6 +20,46 @@ Waves node is a host connected to the blockchain network with the following func
 - [Extensions](https://docs.waves.tech/en/waves-node/extensions/) management
 
 Learn more about Waves Node in the [documentation](https://docs.waves.tech/en/waves-node/).
+
+## 🚀️ TL;DR Modified Node by Pütti
+
+This node is modified for special purposes.
+
+Make sure you get the IP/Port config right in node/src/main/scala/com/wavesplatform/utx/UtxPoolImpl.scala
+Other configuration has to be done in waves-official.conf  
+
+Compile as follows
+```bash
+sbt packageAll
+```
+
+You can run it by
+```bash 
+java -jar node/target/waves-all*.jar ~/_blockchaindata/Waves_own/waves-official.conf                                  
+```
+
+Ctrl + C sends a shutdown signal so the node will shut down gracefully during the next couple of seconds.
+Force-closing or crashing the node will result in a broken bloom-filter which the node has to rebuild on the next start (time-intensive!)
+
+### In case you start from scratch and need some prerequisites:
+Install sbt (see below)
+Install libtool-bin (?)
+
+Make sure you have ZeroMQ installed 
+```bash
+sudo wget http://download.zeromq.org/zeromq-2.2.0.tar.gz && tar -xvf zeromq-2.2.0.tar.gz && cd zeromq-2.2.0 && ./autogen.sh && ./configure && make -j 4 && make check && make install
+```
+and Java JDK of version 8.
+```bash
+sudo apt install default-jdk 
+```
+
+## Troubleshooting
+Executing the .jar files sometimes results in a strange error about unknown characters. Just recompile the whole project as follows:
+```bash
+sbt clean
+sbt packageAll
+```
 
 ## 🚀️ Getting started
 
@@ -97,7 +111,8 @@ To build and test this project, you will have to follow these steps:
 
 ```bash
 sudo apt-get update
-sudo apt-get install openjdk-8-jre                     # Ubuntu
+sudo apt install default-jdk # Pütti: use the new jdk instead of version 8!
+# old: sudo apt-get install openjdk-8-jre                     # Ubuntu
 # or
 # brew cask install adoptopenjdk/openjdk/adoptopenjdk8 # Mac
 ```
@@ -116,7 +131,7 @@ cd Waves
 *3. Compile and run tests*
 
 ```bash
-sbt checkPR
+sbt -mem 2048 checkPR # Pütti: required to extend memory to 2 GB
 ```
 
 *4. Run integration tests (optional)*
