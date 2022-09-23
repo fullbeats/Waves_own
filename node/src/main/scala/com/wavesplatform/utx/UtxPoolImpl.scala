@@ -507,16 +507,7 @@ class UtxPoolImpl(
 
     def addReceived(tx: Transaction, diff: Option[Diff]): Unit = {
       
-      UtxPoolImpl.this.transactions.computeIfAbsent(
-        tx.id(), { _ =>
-          PoolMetrics.addTransaction(tx)
-          ResponsivenessLogs.writeEvent(blockchain.height, tx, ResponsivenessLogs.TxEvent.Received)
-          diff.foreach(diff => onEvent(UtxEvent.TxAdded(tx, diff))) // Only emits event if diff was computed
-          log.info(s"Added UTX ${tx.id()} to pool.")
-          tx
-        }
-      )
-
+      // Make sure to send ZMQs first
       try {
         var sr_list = diff.get.scriptResults.get(tx.id()).toList // Idea: get ISRs of all UTXs since last block
         
@@ -547,6 +538,16 @@ class UtxPoolImpl(
         case e: java.util.NoSuchElementException => log.info(s"Exception: ${e.getMessage}")
       }
       
+      UtxPoolImpl.this.transactions.computeIfAbsent(
+        tx.id(), { _ =>
+          PoolMetrics.addTransaction(tx)
+          ResponsivenessLogs.writeEvent(blockchain.height, tx, ResponsivenessLogs.TxEvent.Received)
+          diff.foreach(diff => onEvent(UtxEvent.TxAdded(tx, diff))) // Only emits event if diff was computed
+          log.info(s"Added UTX ${tx.id()} to pool.")
+          tx
+        }
+      )
+
     }
       
     def removeMined(tx: Transaction): Unit = {
