@@ -50,6 +50,8 @@ import scala.util.{Try, Success, Failure}
 import org.zeromq.ZMQ
 import org.zeromq.{SocketType, ZContext}
 import java.time._
+import com.typesafe.config.{Config, ConfigFactory}
+
 
 //noinspection ScalaStyle
 class UtxPoolImpl(
@@ -65,6 +67,11 @@ class UtxPoolImpl(
     with UtxPool {
 
   import com.wavesplatform.utx.UtxPoolImpl.*
+  
+  // val path = "~/_blockchaindata/Waves_own/waves-official.conf"
+  // val config: Config = ConfigFactory.load(path)
+  // val port_cfg = config.getString("bind-address")
+  // log.info(port_cfg)
 
   // Context
   private[this] val cleanupScheduler: SchedulerService =
@@ -73,14 +80,24 @@ class UtxPoolImpl(
 
   // Pütti ZMQ integration
   // adapted from https://github.com/iRevive/fmq/blob/master/bench/src/main/scala/io/fmq/JeroMQSocketBenchmark.scala
-  val ctx  = new ZContext() // alternativ: ZMQ.context(1)
-  val addr = s"tcp://192.168.20.218"
-  val port = "3333"
+  val ctx  = new ZContext(); // alternativ: ZMQ.context(1)
+  val addr = s"tcp://192.168.20.218";
+  val port = "3333";
+  val topic = "ISR";
+
 
   val push = ctx.createSocket(ZMQ.XPUB)
   push.setSendBufferSize(200000)
   push.setHWM(0)
+  // val confl = 1;
+  // push.setsockopt(zmq.CONFLATE, 1)
+  // push.set(zmq::sockopt::conflate, 1)
+  // zmq_setsockopt(push, ZMQ_CONFLATE, "1", 1)
+  // push->setsockopt(ZMQ_CONFLATE, &confl, sizeof(confl)); // Keep only last message
+
   push.bind("tcp://*:"+port);
+
+
 
   // State
   val priorityPool               = new UtxPriorityPool(blockchain)
@@ -489,6 +506,7 @@ class UtxPoolImpl(
     }
 
     def addReceived(tx: Transaction, diff: Option[Diff]): Unit = {
+      
       UtxPoolImpl.this.transactions.computeIfAbsent(
         tx.id(), { _ =>
           PoolMetrics.addTransaction(tx)
@@ -512,17 +530,17 @@ class UtxPoolImpl(
           }
 
           var tx_json = tx.json()
-          val msg_json = tx_json.+("stateChanges", Json.toJsObject(sr))
+          val msg_json = tx_json.+("stateChanges", sr_json)
           val message = msg_json.toString()
 
           // log.info(s"${sr_json.values}\n")
-          log.info(s"ISR DetailInfo for Tx ${tx.id()}: \n${msg_json}\n")
           // log.info(s"Tx Json of tx ${tx.id()}: ${tx.json()}")
           // publisher.send("ISR".getBytes(), ZMQ.SNDMORE)
           // publisher.send(message.getBytes(), 0)
           // push.send(message)
-          push.send("ISR", ZMQ.SNDMORE)
-          push.send(message, 0)          
+          push.send(topic, ZMQ.SNDMORE)
+          push.send(message, 0)
+          log.info(s"ISR DetailInfo for Tx ${tx.id()}: \n${msg_json}\n")     
         }
       
       } catch {
