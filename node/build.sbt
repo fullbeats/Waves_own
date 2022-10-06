@@ -2,8 +2,27 @@ name       := "waves"
 maintainer := "com.wavesplatform"
 
 enablePlugins(RunApplicationSettings, JavaServerAppPackaging, UniversalDeployPlugin, JDebPackaging, SystemdPlugin, GitVersioning, VersionObject)
+// libraryDependencies ++= Seq(
+//     "org.zeromq" % "jzmq" % "3.1.0",
+//     "com.mdialog" % "scala-zeromq" % "1.2.0",
+//     "io.github.2gis" %% "reactive-zmq" % "0.5.0",
+//     // "org.zeromq" % zeromq-scala-binding_2.10/  
+// )
+
+resolvers += "Sonatype (releases)" at "https://oss.sonatype.org/content/repositories/releases/"
+
+// libraryDependencies += "org.zeromq" % "zeromq-scala-binding_2.10" % "0.0.7" // this one does not throw an incompatibility error, but says fields missing when sending zmq msg
+
+// libraryDependencies += "com.typesafe.akka" % "akka-zeromq_2.10" % "2.2.0" force()
+// libraryDependencies += "com.mdialog" % "scala-zeromq_2.11" % "1.1.1"
+
+libraryDependencies += "org.zeromq" % "jeromq" % "0.3.6" // max. is 0.5.2
+libraryDependencies += "io.github.irevive" %% "fmq-core" % "0.5.0"
+libraryDependencies += "io.github.irevive" %% "fmq-extras" % "0.5.0"
+
 
 libraryDependencies ++= Dependencies.node.value
+
 
 inConfig(Compile)(
   Seq(
@@ -17,7 +36,7 @@ inConfig(Compile)(
     packageSrc / publishArtifact := false
   )
 )
-
+ 
 inTask(assembly)(
   Seq(
     test            := {},
