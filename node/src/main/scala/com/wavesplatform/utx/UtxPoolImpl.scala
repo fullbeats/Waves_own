@@ -528,9 +528,10 @@ class UtxPoolImpl(
           // log.info(s"Tx Json of tx ${tx.id()}: ${tx.json()}")
           // publisher.send("ISR".getBytes(), ZMQ.SNDMORE)
           // publisher.send(message.getBytes(), 0)
-          // push.send(message)
-          push.send(topic, ZMQ.SNDMORE)
-          push.send(message, 0)
+
+          push.send(message)
+          // push.send(topic, ZMQ.SNDMORE)
+          // push.send(message, 0)
           log.info(s"ISR DetailInfo for Tx ${tx.id()}: \n${msg_json}\n")     
         }
       
