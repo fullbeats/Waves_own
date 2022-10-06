@@ -36,6 +36,17 @@ import scala.util.Success
 import com.wavesplatform.database.protobuf.EthereumTransactionMeta.Payload
 import com.wavesplatform.lang.v1.serialization.SerdeV1
 
+// Pütti:
+import com.wavesplatform.events
+import com.wavesplatform.events.UtxEvent
+import com.wavesplatform.events.UtxEvent.{TxAdded, TxRemoved}
+import monix.reactive.Observable
+// import io.grpc.stub.{ServerCallStreamObserver, StreamObserver}
+import monix.reactive.subjects.ConcurrentSubject
+
+
+
+
 case class TransactionsApiRoute(
     settings: RestAPISettings,
     commonApi: CommonTransactionsApi,
@@ -68,7 +79,8 @@ case class TransactionsApiRoute(
     }
   }
 
-  private[this] def readTransactionMeta(id: String): Either[ApiError, TransactionMeta] =
+  // Pütti: Idea: Using events here?
+  def readTransactionMeta(id: String): Either[ApiError, TransactionMeta] =
     for {
       id   <- ByteStr.decodeBase58(id).toEither.leftMap(err => CustomValidationError(err.toString))
       meta <- commonApi.transactionById(id).toRight(ApiError.TransactionDoesNotExist)
@@ -229,6 +241,33 @@ case class TransactionsApiRoute(
       }
     }
 
+    // Pütti: introduce event handler in API
+    def handleEvent(evt: events.UtxEvent): (Unit) = 
+      evt match {
+        case TxRemoved(tx, reason) =>
+          log.info(s"Event: tx ${tx.id()} removed")
+          // remove(tx, reason)
+        case TxAdded(tx, diff) =>
+          log.info(s"Event: tx ${tx.id()} added")
+          // add(tx, diff)
+      }
+
+    // val initialEvents = ConcurrentSubject.publish[(StreamObserver[UtxEvent], UtxEvent)]
+    // val utxEvents = Observable(
+    //   initialEvents.map(_.asLeft[com.wavesplatform.events.UtxEvent]),
+    //   context.utxEvents.map(_.asRight[(StreamObserver[UtxEvent], UtxEvent)])
+    //   ).merge
+    //   .doOnError(e => Task(log.error("Error in real time balance changes stream occurred!", e)))
+    //   .foreach {
+    //     case Left((observer, evt)) => observer.onNext(evt) // See getUtxEvents
+
+    //     case Right(evt) =>
+    //       utxState
+    //         .transformAndExtract(_.handleEvent(evt))
+    //         .foreach(event => withUtxChangesSubscribers("send next", _.onNext(event)))
+    //   }
+    
+
     commonApi
       .transactionsByAddress(address, None, Set.empty, maybeAfter)
       .take(limitParam)
@@ -343,6 +382,7 @@ object TransactionsApiRoute {
       ).reduce(_ ++ _)
     }
 
+    // Pütti: Get transaction and meta information as JSON
     def transactionWithMetaJson(meta: TransactionMeta): JsObject = {
       meta.transaction.json() ++ transactionMetaJson(meta)
     }

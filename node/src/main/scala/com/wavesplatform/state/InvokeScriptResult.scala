@@ -121,6 +121,7 @@ object InvokeScriptResult {
     override val empty: InvokeScriptResult =
       InvokeScriptResult.this.empty
 
+    // Pütti: Combine two invokesrictresults
     override def combine(x: InvokeScriptResult, y: InvokeScriptResult): InvokeScriptResult = {
       InvokeScriptResult(
         data = x.data ++ y.data,

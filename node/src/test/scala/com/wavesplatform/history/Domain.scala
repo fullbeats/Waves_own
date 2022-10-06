@@ -74,6 +74,7 @@ case class Domain(db: DB, blockchainUpdater: BlockchainUpdaterImpl, levelDBWrite
         .transactionById(transactionId)
         .getOrElse(throw new NoSuchElementException(s"No meta for $transactionId"))
 
+    // Pütti: Get Scriptresult by TxID
     def invokeScriptResult(transactionId: ByteStr): InvokeScriptResult =
       transactionMeta(transactionId) match {
         case hsc: TransactionMeta.HasStateChanges => hsc.invokeScriptResult.get

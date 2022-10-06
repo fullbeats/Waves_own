@@ -66,6 +66,7 @@ object TransactionDiffer {
       blockchain: Blockchain,
       tx: Transaction
   ): TracedResult[ValidationError, Diff] = {
+    // log.info(s"TransactionDiffer - validate ${tx.toString()}")
     val runVerifiers = verify || (transactionMayFail(tx) && acceptFailed(blockchain))
     val result = for {
       _               <- validateCommon(blockchain, tx, prevBlockTimestamp, currentBlockTimestamp, verify).traced

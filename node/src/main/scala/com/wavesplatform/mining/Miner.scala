@@ -140,7 +140,7 @@ class MinerImpl(
         utx.packUnconfirmed(mdConstraint, PackStrategy.Limit(settings.minerSettings.microBlockInterval))
       )
       val unconfirmed = maybeUnconfirmed.getOrElse(Seq.empty)
-      log.debug(s"Adding ${unconfirmed.size} unconfirmed transaction(s) to new block")
+      log.info(s"Adding ${unconfirmed.size} unconfirmed transaction(s) to new block")
       (unconfirmed, updatedMdConstraint.constraints.head)
     }
   }
@@ -332,6 +332,7 @@ object Miner {
     override def scheduleMining(blockchain: Option[Blockchain]): Unit                           = ()
     override def getNextBlockGenerationOffset(account: KeyPair): Either[String, FiniteDuration] = Left("Disabled")
     override val state: MinerDebugInfo.State                                                    = MinerDebugInfo.Disabled
+    
   }
 
   def hasAllowedForMiningScript(address: Address, blockchain: Blockchain): Boolean =

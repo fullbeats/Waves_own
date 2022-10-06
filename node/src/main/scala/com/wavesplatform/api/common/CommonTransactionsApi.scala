@@ -18,6 +18,7 @@ import com.wavesplatform.wallet.Wallet
 import monix.reactive.Observable
 import org.iq80.leveldb.DB
 
+
 import scala.concurrent.Future
 
 trait CommonTransactionsApi {
@@ -64,6 +65,7 @@ object CommonTransactionsApi {
     ): Observable[TransactionMeta] =
       common.addressTransactions(db, maybeDiff, subject, sender, transactionTypes, fromId)
 
+    // Pütti: Should also return state changes
     override def transactionById(transactionId: ByteStr): Option[TransactionMeta] =
       blockchain.transactionInfo(transactionId).map(common.loadTransactionMeta(db, maybeDiff))
 
@@ -90,4 +92,12 @@ object CommonTransactionsApi {
         transactionProof        <- block.transactionProof(tx, allTransactions.map(_._2))
       } yield transactionProof
   }
+
+  // Pütti: new public method
+  def transactionMetaById(transactionId: ByteStr, blockchain: Blockchain, db: DB, diff: Option[Diff]): Option[TransactionMeta] =
+    diff match {
+      case Some(diff_value) => blockchain.transactionInfo(transactionId).map(common.loadTransactionMeta( db, Some(blockchain.height, diff_value)))
+      case _ => None
+    }
+
 }

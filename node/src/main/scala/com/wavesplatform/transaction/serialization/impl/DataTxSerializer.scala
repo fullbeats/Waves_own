@@ -14,6 +14,7 @@ import play.api.libs.json.{JsObject, Json}
 
 import scala.util.Try
 
+// Pütti: DataTransaction gets serialized here
 object DataTxSerializer {
   def toJson(tx: DataTransaction): JsObject = {
     import tx._

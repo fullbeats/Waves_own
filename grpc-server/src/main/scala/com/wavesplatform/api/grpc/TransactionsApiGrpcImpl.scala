@@ -79,7 +79,8 @@ class TransactionsApiGrpcImpl(blockchain: Blockchain, commonApi: CommonTransacti
         Observable.fromIterable(unconfirmedTransactions.map(t => TransactionResponse(t.id().toByteString, transaction = Some(t.toPB))))
       )
     }
-
+  
+  // Pütti: Might be interesting as well: Invokes Script results from txs
   override def getStateChanges(request: TransactionsRequest, responseObserver: StreamObserver[InvokeScriptResultResponse]): Unit =
     responseObserver.interceptErrors {
       val result = Observable(request.transactionIds*)
