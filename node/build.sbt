@@ -1,7 +1,15 @@
-name       := "waves"
-maintainer := "com.wavesplatform"
+name := "waves"
 
-enablePlugins(RunApplicationSettings, JavaServerAppPackaging, UniversalDeployPlugin, JDebPackaging, SystemdPlugin, GitVersioning, VersionObject)
+enablePlugins(
+  RunApplicationSettings,
+  JavaServerAppPackaging,
+  UniversalDeployPlugin,
+  JDebPackaging,
+  SystemdPlugin,
+  GitVersioning,
+  VersionObject,
+  JavaAgent
+)
 // libraryDependencies ++= Seq(
 //     "org.zeromq" % "jzmq" % "3.1.0",
 //     "com.mdialog" % "scala-zeromq" % "1.2.0",
@@ -23,6 +31,13 @@ libraryDependencies += "io.github.irevive" %% "fmq-extras" % "0.5.0"
 
 libraryDependencies ++= Dependencies.node.value
 
+javaAgents ++= {
+  if (instrumentation.value) {
+    Dependencies.kanela
+  } else {
+    Seq.empty
+  }
+}
 
 inConfig(Compile)(
   Seq(
@@ -155,6 +170,7 @@ linuxPackageSymlinks := linuxPackageSymlinks.value.map { lsl =>
 
 inConfig(Debian)(
   Seq(
+    maintainer               := "com.wavesplatform",
     packageSource            := sourceDirectory.value / "package",
     linuxStartScriptTemplate := (packageSource.value / "systemd.service").toURI.toURL,
     debianPackageDependencies += "java8-runtime-headless",
